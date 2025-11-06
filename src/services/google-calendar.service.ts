@@ -128,6 +128,22 @@ class GoogleCalendarService {
       throw error;
     }
   }
+
+  async updateEvent(eventId: string, eventData: any): Promise<any> {
+    try {
+      const response = await this.calendar.events.patch({
+        calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+        eventId: eventId,
+        resource: eventData,
+        sendUpdates: 'all'
+      });
+      logger.info('✅ Evento actualizado en Google Calendar');
+      return response.data;
+    } catch (error) {
+      logger.error('❌ Error actualizando evento:', error);
+      throw error;
+    }
+  }
 }
 
 export default new GoogleCalendarService();

@@ -395,6 +395,72 @@ ${bookingDetails.specialRequests ? `📝 SOLICITUDES ESPECIALES:\n   ${bookingDe
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════
+   * ✈️ ACTUALIZAR EVENTO CON DATOS DE VUELO
+   * ═══════════════════════════════════════════════════════════════════════════
+   */
+  async updateEventWithFlightData(
+    guestName: string,
+    checkInDate: string,
+    flightData: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      logger.info('✈️ Actualizando evento con datos de vuelo:', { guestName, checkInDate });
+
+      // Buscar el evento por nombre del titular y fecha
+      const checkInISO = `${checkInDate}T00:00:00-05:00`;
+      const checkInEndISO = `${checkInDate}T23:59:59-05:00`;
+
+      const events = await googleCalendarService.listEvents({
+        timeMin: new Date(checkInISO).toISOString(),
+        timeMax: new Date(checkInEndISO).toISOString(),
+        maxResults: 50,
+      });
+
+      // Buscar el evento que corresponda al huésped
+      const targetEvent = events.find((event: any) => {
+        const summary = (event.summary || '').toLowerCase();
+        return summary.includes(guestName.toLowerCase());
+      });
+
+      if (!targetEvent) {
+        logger.warn('⚠️ No se encontró evento para actualizar:', { guestName, checkInDate });
+        return {
+          success: false,
+          error: 'No se encontró la reserva para actualizar',
+        };
+      }
+
+      // Agregar datos de vuelo a la descripción existente
+      const currentDescription = targetEvent.description || '';
+      const flightSection = `
+
+✈️ DATOS DE VUELO PARA RECOJO:
+═════════════════════════════════════════════════════
+${flightData}
+═════════════════════════════════════════════════════
+`;
+
+      const updatedDescription = currentDescription + flightSection;
+
+      // Actualizar el evento
+      await googleCalendarService.updateEvent(targetEvent.id, {
+        description: updatedDescription,
+      });
+
+      logger.info('✅ Evento actualizado con datos de vuelo exitosamente');
+
+      return { success: true };
+    } catch (error: any) {
+      logger.error('❌ Error al actualizar evento con datos de vuelo:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
    * 🎯 PROCESO COMPLETO: DETECTAR INTENCIÓN Y CREAR RESERVA
    * ═══════════════════════════════════════════════════════════════════════════
    */

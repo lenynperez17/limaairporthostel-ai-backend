@@ -362,6 +362,36 @@ export class HotelConversationalAI {
       if (decision.intentType === 'flight_info') {
         logger.info('✈️ [HOTEL AI] Procesando información de vuelo...');
 
+        // 🔥 ACTUALIZAR GOOGLE CALENDAR con datos de vuelo
+        try {
+          // Consultar memoria para obtener nombre_titular y fecha_ingreso
+          const memoryData = await this.getAgentMemory(context.subscriberId);
+
+          if (memoryData.nombre_titular && memoryData.fecha_ingreso) {
+            logger.info('📅 [HOTEL AI] Actualizando Google Calendar con datos de vuelo:', {
+              titular: memoryData.nombre_titular,
+              fecha: memoryData.fecha_ingreso
+            });
+
+            const updateResult = await bookingCalendarService.updateEventWithFlightData(
+              memoryData.nombre_titular,
+              memoryData.fecha_ingreso,
+              context.userMessage
+            );
+
+            if (updateResult.success) {
+              logger.info('✅ [HOTEL AI] Datos de vuelo agregados al Calendar exitosamente');
+            } else {
+              logger.warn('⚠️ [HOTEL AI] No se pudo actualizar Calendar:', updateResult.error);
+            }
+          } else {
+            logger.warn('⚠️ [HOTEL AI] No hay nombre_titular o fecha_ingreso en memoria, no se puede actualizar Calendar');
+          }
+        } catch (error) {
+          logger.error('❌ [HOTEL AI] Error al actualizar Calendar con datos de vuelo:', error);
+          // Continuamos con la respuesta al usuario aunque falle la actualización
+        }
+
         return {
           success: true,
           response: decision.suggestedResponse,
