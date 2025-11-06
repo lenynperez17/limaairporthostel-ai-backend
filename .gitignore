@@ -13,10 +13,6 @@ yarn.lock
 .env.test.local
 .env.production.local
 
-# Archivos de configuración sensibles de Google
-config/google/token.json
-config/google/credentials.json
-
 # Build
 dist/
 build/
@@ -52,6 +48,18 @@ prisma/.env
 # Archivos temporales
 *.tmp
 *.temp
+
+# Archivos de configuración sensibles de Google
+config/google/token.json
+config/google/credentials.json
+
+# Backups
+*.backup
+*.backup-*
+*.backup_*
+dist-backup-*/
+dist.backup.*/
+*.bak
 
 # Archivos comprimidos
 *.tar.gz

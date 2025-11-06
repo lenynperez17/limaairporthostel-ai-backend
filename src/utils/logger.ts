@@ -5,27 +5,15 @@
 import winston from 'winston';
 import path from 'path';
 
-// Formato personalizado para logs CON metadata
+// Formato personalizado para logs
 const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ level, message, timestamp, stack, ...metadata }) => {
-    // Filtrar campos internos de Winston
-    const { splat, ...cleanMetadata } = metadata;
-
-    let log = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
-
-    // Agregar metadata si existe
-    if (Object.keys(cleanMetadata).length > 0) {
-      log += `\n   ${JSON.stringify(cleanMetadata, null, 3)}`;
-    }
-
-    // Agregar stack trace si existe
+  winston.format.printf(({ level, message, timestamp, stack }) => {
     if (stack) {
-      log += `\n${stack}`;
+      return `[${timestamp}] ${level.toUpperCase()}: ${message}\n${stack}`;
     }
-
-    return log;
+    return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
   })
 );
 

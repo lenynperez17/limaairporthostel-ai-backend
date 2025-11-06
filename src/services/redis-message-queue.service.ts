@@ -40,7 +40,7 @@ interface MessageQueueData {
 class RedisMessageQueueService {
   private redisClient: Redis | null = null;
   private isConnected: boolean = false;
-  private readonly TIMEOUT_MS = 2000; // 🚀 2 segundos - respuesta rápida
+  private readonly TIMEOUT_MS = 1000; // 🚀 1 segundo - respuesta SUPER rápida
   private readonly KEY_PREFIX = 'hotel:msgqueue:'; // Prefijo para keys de Redis
   private readonly LOCK_PREFIX = 'hotel:msglock:'; // Prefijo para locks
   private readonly KEY_EXPIRY = 300; // 5 minutos de expiración en Redis

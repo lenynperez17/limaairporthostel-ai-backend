@@ -68,17 +68,6 @@ class GoogleCalendarService {
 
   async checkRoomAvailability(checkIn: string, checkOut: string, totalRooms: number = 10): Promise<RoomAvailability> {
     try {
-      // Verificar si Google Calendar está configurado
-      if (!this.calendar) {
-        logger.info('📊 Google Calendar no configurado - usando disponibilidad simulada');
-        return {
-          date: checkIn,
-          availableRooms: totalRooms,
-          totalRooms,
-          isAvailable: true
-        };
-      }
-
       const checkInISO = `${checkIn}T14:00:00-05:00`;
       const checkOutISO = `${checkOut}T12:00:00-05:00`;
 
@@ -93,7 +82,7 @@ class GoogleCalendarService {
       const bookedRooms = response.data.items?.length || 0;
       const availableRooms = Math.max(0, totalRooms - bookedRooms);
 
-      logger.info(`🏨 Disponibilidad real: ${availableRooms}/${totalRooms} habitaciones`);
+      logger.info(`🏨 Disponibilidad: ${availableRooms}/${totalRooms} habitaciones`);
 
       return {
         date: checkIn,
@@ -102,8 +91,7 @@ class GoogleCalendarService {
         isAvailable: availableRooms > 0
       };
     } catch (error) {
-      // Silenciar error de autenticación (usar modo simulación)
-      logger.info('📊 Google Calendar no disponible - usando disponibilidad simulada (10/10)');
+      logger.error('❌ Error verificando disponibilidad:', error);
       return {
         date: checkIn,
         availableRooms: totalRooms,
