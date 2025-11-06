@@ -342,6 +342,63 @@ export class HotelConversationalAI {
       if (decision.intentType === 'payment') {
         logger.info('💳 [HOTEL AI] Procesando información de pago...');
 
+        // 🔥 CREAR EVENTO EN GOOGLE CALENDAR cuando se confirma el pago
+        try {
+          // Consultar memoria para obtener datos de la reserva
+          const memoryData = await this.getAgentMemory(context.subscriberId);
+
+          if (memoryData.nombre_titular && memoryData.fecha_ingreso && memoryData.habitacion_solicitada) {
+            logger.info('📅 [HOTEL AI] Creando evento en Google Calendar para reserva confirmada:', {
+              titular: memoryData.nombre_titular,
+              fecha_ingreso: memoryData.fecha_ingreso,
+              habitacion: memoryData.habitacion_solicitada,
+              noches: memoryData.cantidad_noches || memoryData.duracion_estadia || 1
+            });
+
+            // Calcular fecha de check-out
+            const checkInDate = new Date(memoryData.fecha_ingreso);
+            const nights = memoryData.cantidad_noches || memoryData.duracion_estadia || 1;
+            const checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + nights);
+
+            const checkOutISO = checkOutDate.toISOString().split('T')[0];
+
+            // Preparar datos para crear reserva
+            const bookingDetails = {
+              roomType: memoryData.habitacion_solicitada as any,
+              guestName: memoryData.nombre_titular,
+              guestEmail: context.subscriber?.email,
+              guestPhone: context.subscriber?.phone,
+              checkInDate: memoryData.fecha_ingreso,
+              checkOutDate: checkOutISO,
+              numberOfGuests: memoryData.cantidad_personas || 1,
+              needsAirportPickup: true, // Asumimos que sí por defecto
+              specialRequests: undefined
+            };
+
+            // Crear evento en Google Calendar
+            const reservationResult = await bookingCalendarService.createReservation(bookingDetails);
+
+            if (reservationResult.success) {
+              logger.info('✅ [HOTEL AI] Evento creado en Google Calendar exitosamente:', {
+                codigo: reservationResult.reservationCode,
+                eventUrl: reservationResult.eventUrl
+              });
+            } else {
+              logger.warn('⚠️ [HOTEL AI] No se pudo crear evento en Calendar:', reservationResult.error);
+            }
+          } else {
+            logger.warn('⚠️ [HOTEL AI] Faltan datos en memoria para crear evento en Calendar:', {
+              tiene_nombre: !!memoryData.nombre_titular,
+              tiene_fecha: !!memoryData.fecha_ingreso,
+              tiene_habitacion: !!memoryData.habitacion_solicitada
+            });
+          }
+        } catch (error) {
+          logger.error('❌ [HOTEL AI] Error al crear evento en Calendar:', error);
+          // Continuamos con la respuesta al usuario aunque falle la creación del evento
+        }
+
         return {
           success: true,
           response: decision.suggestedResponse,
