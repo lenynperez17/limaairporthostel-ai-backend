@@ -1,0 +1,59 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de configuración sensibles de Google
+config/google/token.json
+config/google/credentials.json
+
+# Build
+dist/
+build/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Prisma
+prisma/.env
+
+# Cache
+.cache/
+.npm/
+.eslintcache
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos comprimidos
+*.tar.gz
+*.zip
+*.rar

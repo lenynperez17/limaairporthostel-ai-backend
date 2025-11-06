@@ -1,0 +1,349 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// 🗄️ SCHEMA DE BASE DE DATOS - LIMA AIRPORT HOSTEL AI SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+// Sistema de gestión de reservas con IA conversacional integrada
+// Incluye: Subscribers, Conversaciones, Mensajes, Reservas y Habitaciones
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 👤 USUARIOS DEL SISTEMA (Dashboard Admin)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(RECEPTIONIST)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  RECEPTIONIST
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 👥 CLIENTES/HUÉSPEDES (de ManyChat)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Subscriber {
+  id            String   @id @default(uuid())
+  subscriberId  String   @unique // ID de ManyChat
+  platform      Platform
+  firstName     String?
+  lastName      String?
+  email         String?
+  phone         String?
+  tags          String[] // Tags de ManyChat
+  customFields  Json? // Campos personalizados de ManyChat
+
+  // Clasificación de huésped
+  guestType     GuestType @default(NEW)
+  priority      Priority @default(NORMAL)
+
+  // Preferencias del huésped
+  preferences   Json? // Preferencias de habitación, servicios, etc.
+
+  // Metadata
+  firstSeenAt   DateTime @default(now())
+  lastActiveAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  conversations Conversation[]
+  bookings      Booking[]
+
+  @@map("subscribers")
+  @@index([subscriberId])
+  @@index([guestType])
+  @@index([platform])
+}
+
+enum Platform {
+  INSTAGRAM
+  WHATSAPP
+  FACEBOOK
+  TELEGRAM
+  EMAIL
+  WEB
+}
+
+enum GuestType {
+  NEW
+  CONTACTED
+  INTERESTED
+  RESERVED
+  CHECKED_IN
+  CHECKED_OUT
+  RETURNING
+  VIP
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 💬 CONVERSACIONES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Conversation {
+  id           String   @id @default(uuid())
+  subscriberId String
+  subscriber   Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  // Metadata de la conversación
+  topic        String? // Tema principal identificado por IA (ej: "consulta de habitación", "reserva")
+  sentiment    Sentiment? // Sentimiento general
+
+  // Control
+  isActive     Boolean  @default(true)
+  startedAt    DateTime @default(now())
+  endedAt      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  messages     Message[]
+
+  @@map("conversations")
+  @@index([subscriberId])
+  @@index([isActive])
+}
+
+enum Sentiment {
+  VERY_NEGATIVE
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+  VERY_POSITIVE
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📨 MENSAJES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Tipo y contenido
+  role           MessageRole
+  messageType    MessageType
+  content        String   @db.Text // Contenido principal (texto o transcripción)
+
+  // Archivos multimedia
+  audioUrl       String? // URL del audio original
+  imageUrl       String? // URL de la imagen original
+  audioTranscription String? @db.Text // Transcripción de audio
+  imageAnalysis  Json? // Análisis de GPT-4 Vision
+
+  // Metadata de IA
+  aiAgent        String? // Qué agente procesó esto
+  aiConfidence   Float? // Confianza de la respuesta (0-1)
+  processingTime Int? // Tiempo en ms
+
+  // Timestamps
+  createdAt      DateTime @default(now())
+
+  @@map("messages")
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+enum MessageRole {
+  USER      // Mensaje del huésped
+  ASSISTANT // Respuesta del sistema
+  SYSTEM    // Mensajes internos
+}
+
+enum MessageType {
+  TEXT
+  AUDIO
+  IMAGE
+  DOCUMENT
+  LOCATION
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🏨 TIPOS DE HABITACIONES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model RoomType {
+  id            String   @id @default(uuid())
+  name          String   @unique // "Individual con baño privado", "Doble con baño privado", etc.
+  slug          String   @unique // "individual-bano-privado"
+  description   String   @db.Text
+  capacity      Int // Número de personas
+
+  // Precios
+  priceUSD      Decimal  @db.Decimal(10, 2)
+  pricePEN      Decimal  @db.Decimal(10, 2)
+
+  // Características
+  features      String[] // ["Baño privado", "WiFi", "TV", "Aire acondicionado"]
+  images        String[] // URLs de imágenes de la habitación
+
+  // Inventario
+  totalRooms    Int // Cuántas habitaciones de este tipo hay
+
+  // Estado
+  isActive      Boolean  @default(true)
+  displayOrder  Int      @default(0)
+
+  // Metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  bookings      Booking[]
+
+  @@map("room_types")
+  @@index([isActive])
+  @@index([slug])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📅 RESERVAS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Booking {
+  id            String   @id @default(uuid())
+  bookingCode   String   @unique // RES-2025-001
+
+  subscriberId  String
+  subscriber    Subscriber @relation(fields: [subscriberId], references: [id])
+
+  roomTypeId    String
+  roomType      RoomType @relation(fields: [roomTypeId], references: [id])
+
+  // Detalles de la reserva
+  checkIn       DateTime
+  checkOut      DateTime
+  nights        Int
+  guests        Int
+
+  // Precios
+  pricePerNight Decimal  @db.Decimal(10, 2)
+  totalPrice    Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+
+  // Información del huésped
+  guestName     String
+  guestEmail    String?
+  guestPhone    String?
+  specialRequests String?  @db.Text
+
+  // Estado
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  cancellationReason String?
+
+  // Integración con Google Calendar
+  calendarEventId String? // ID del evento en Google Calendar
+
+  // Metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("bookings")
+  @@index([subscriberId])
+  @@index([status])
+  @@index([checkIn])
+  @@index([checkOut])
+}
+
+enum BookingStatus {
+  PENDING      // Pendiente de confirmación
+  CONFIRMED    // Confirmada
+  CHECKED_IN   // Huésped en hotel
+  CHECKED_OUT  // Checkout completado
+  CANCELLED    // Cancelada
+  NO_SHOW      // No se presentó
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🧠 MEMORIA DE AGENTES IA
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AgentMemory {
+  id            String   @id @default(uuid())
+  subscriberId  String
+  agentType     AgentType
+
+  // Contexto almacenado
+  context       Json
+  summary       String?  @db.Text
+
+  // Metadata
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime?
+
+  @@map("agent_memory")
+  @@unique([subscriberId, agentType])
+  @@index([subscriberId, agentType])
+  @@index([expiresAt])
+}
+
+enum AgentType {
+  RECEPTIONIST    // Agente de recepción
+  CONCIERGE       // Agente de conserjería
+  SUPPORT         // Soporte técnico
+  EXTRACTED_DATA  // Datos extraídos de conversaciones (respaldo)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📈 EVENTOS DE ANALYTICS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AnalyticsEvent {
+  id            String   @id @default(uuid())
+  subscriberId  String?
+
+  // Tipo de evento
+  eventType     String
+  eventCategory String
+
+  // Datos del evento
+  properties    Json
+
+  // Metadata
+  timestamp     DateTime @default(now())
+  platform      Platform?
+  userAgent     String?
+  ipAddress     String?
+
+  @@map("analytics_events")
+  @@index([subscriberId])
+  @@index([eventType])
+  @@index([timestamp])
+}
